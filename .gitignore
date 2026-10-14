@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+test/*.js
+test/*.js.map
+test/*.d.ts
+test/*.d.ts.map
+test/data/

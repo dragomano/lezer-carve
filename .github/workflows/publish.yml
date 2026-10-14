@@ -1,0 +1,61 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write   # required for npm trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          # Never cache in a release build: the cache is keyed on the lockfile,
+          # and restoring one that does not match what is being published is a
+          # way to ship stale dependencies.
+          package-manager-cache: false
+
+      # npm resolves this to a short-lived token through the workflow identity
+      # configured on npmjs.com. There is no NPM_TOKEN secret here, and adding
+      # one would defeat the point.
+      - name: Check the tag matches the version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run check:ci
+
+      # Release checks need the same upstream data as the test workflow.
+      - name: Fetch upstream conformance data
+        run: |
+          mkdir -p test/data
+          curl -sSfL --retry 3 --retry-delay 2 \
+            -o test/data/node-types.json \
+            https://raw.githubusercontent.com/markup-carve/tree-sitter-carve/main/src/node-types.json
+          curl -sSfL --retry 3 --retry-delay 2 \
+            -o test/data/ast-source-layout-fixtures.json \
+            https://raw.githubusercontent.com/markup-carve/carve/main/resources/ast-source-layout-fixtures.json
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # prepack builds this too; running it explicitly keeps a build
+      # failure in the log next to the publish rather than after it.
+      - run: npm run build
+
+      # Provenance is attached automatically by trusted publishing, provided
+      # the repository is public. Do not add --provenance.
+      - run: npm publish

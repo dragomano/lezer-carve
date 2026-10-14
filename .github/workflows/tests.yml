@@ -1,0 +1,67 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 24 is what publish.yml uses; 22 is the oldest line worth guarding.
+        # npm's trusted publishing requires 22.14.0 or newer.
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check:ci
+
+      # names.test.ts and layout.test.ts check the parser against upstream
+      # Carve's own artefacts -- the node names tree-sitter produces, and the
+      # byte ranges of real fixtures. Both skip themselves when these files are
+      # absent, so without this step CI would be green while quietly running
+      # less of the suite than a local `npm test` does.
+      #
+      # The fetch is allowed to fail. What must not fail silently is the
+      # outcome: if either file is missing, the job stops rather than reporting
+      # a green run that skipped the conformance checks.
+      - name: Fetch upstream conformance data
+        run: |
+          mkdir -p test/data
+          for spec in \
+            "node-types.json|https://raw.githubusercontent.com/markup-carve/tree-sitter-carve/main/src/node-types.json" \
+            "ast-source-layout-fixtures.json|https://raw.githubusercontent.com/markup-carve/carve/main/resources/ast-source-layout-fixtures.json"
+          do
+            name="${spec%%|*}"
+            url="${spec#*|}"
+            # -s -f keeps it quiet but fails on HTTP errors; a 404 upstream is
+            # a real signal and should not be cached into a later run.
+            curl -sSfL --retry 3 --retry-delay 2 -o "test/data/$name" "$url" \
+              || echo "::warning::could not fetch $name"
+          done
+          for name in node-types.json ast-source-layout-fixtures.json; do
+            if [ ! -s "test/data/$name" ]; then
+              echo "::error::$name is missing or empty -- conformance suites would skip"
+              exit 1
+            fi
+          done
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # Publishing builds this anyway, so a break here would otherwise reach
+      # npm first and be discovered there.
+      - run: npm run build

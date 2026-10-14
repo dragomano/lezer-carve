@@ -1,0 +1,63 @@
+---
+title: Release notes
+tags: [carve, markup]
+---
+
+{#intro .lead lang=en}
+
+# Release notes
+
+This has /italic/, *bold*, /*both*/, _underline_, ~strikethrough~, and =highlight=.
+
+- [x] Publish the release
+- [ ] Update the package
+
+1. ordered
+. auto-numbered
+
+> A quote that continues lazily.
+
+::: note "Custom title"
+Container body with /em/ and a [link](https://example.com).
+:::
+
+```js "Header" [Label]
+const value = 1
+```
+
+```=html
+<div>passed through</div>
+```
+
+%% a line comment
+%%%
+a fenced comment
+%%%
+
+|= Package |= Version |
+| ^ carve-js | 0.1 |
+| + | 0.2 |
+^ Published packages
+
+:: Carve
+: A markup language
+: With two descriptions
+
+![alt](img.jpg)
+^ Figure #: A sunset
+
+An inline note^[like this]. Inline `code` and $`e^{i\pi}` math, {^sup^}, {,sub,}, :symbol:, @user, #tag,
+[youtube][abc] link and :youtube[abc] extension, {+inserted+}, {-deleted-}, {~old~>new~}, {#note#},
+[Tab]{kbd .ui}, <https://example.com>, </#release-notes>.
+
+Term block below:
+
+: a description that folds into the paragraph
+
+[^1]: A footnote with two paragraphs.
+
+    The second one.
+
+[ref]: https://example.com
+
+*[HTML]: HyperText Markup Language

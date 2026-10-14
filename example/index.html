@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="description" content="Explore the Carve parser through live syntax trees, source ranges, block-by-block parsing and incremental reuse." />
+    <title>lezer-carve / Parser lab</title>
+  </head>
+  <body>
+    <main>
+      <nav class="topbar" aria-label="Page navigation">
+        <a class="brand" href="#top">
+          <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M7 5v18M7 9h14M7 20h14"/><circle cx="7" cy="5" r="3"/><circle cx="21" cy="9" r="3"/><circle cx="21" cy="20" r="3"/></svg>
+          lezer-carve <span>/ parser lab</span>
+        </a>
+        <a class="nav-link" href="#incremental">Explore incremental parsing <span aria-hidden="true">↗</span></a>
+      </nav>
+
+      <header class="hero" id="top">
+        <div>
+          <p class="eyebrow"><span class="status-dot"></span> AN INTERACTIVE GUIDE TO THE CARVE PARSER</p>
+          <h1>A parser,<br /><em>made visible.</em></h1>
+        </div>
+        <div class="hero-copy">
+          <p>Start with a few lines of text. Follow them into a syntax tree. Then change a word and see what the parser keeps.</p>
+          <div class="hero-facts"><span>Real parser output</span><span>No rendering layer</span><span>Runs in your browser</span></div>
+        </div>
+      </header>
+
+      <section class="pipeline" aria-label="Parsing pipeline">
+        <div class="pipeline-stages" role="group" aria-label="Explore a parsing stage">
+          <button class="stage is-active" data-stage="0" aria-pressed="true"><span class="stage-number">01</span><span><strong>Read the source</strong><small>Text & line positions</small></span><span class="stage-arrow" aria-hidden="true">→</span></button>
+          <button class="stage" data-stage="1" aria-pressed="false"><span class="stage-number">02</span><span><strong>Find the blocks</strong><small>Layout & containers</small></span><span class="stage-arrow" aria-hidden="true">→</span></button>
+          <button class="stage" data-stage="2" aria-pressed="false"><span class="stage-number">03</span><span><strong>Read inline spans</strong><small>Content within a block</small></span><span class="stage-arrow" aria-hidden="true">→</span></button>
+          <button class="stage" data-stage="3" aria-pressed="false"><span class="stage-number">04</span><span><strong>Build the tree</strong><small>Nodes & source ranges</small></span></button>
+        </div>
+        <div class="stage-detail" aria-live="polite"><span id="stage-file">Source</span><p id="stage-description">On the first parsing step, the input is read and its line starts are indexed. These positions let the parser reason about columns and look ahead to block boundaries.</p></div>
+        <p class="pipeline-note">A view of the architecture. Block and inline work repeat for each document block; these are not four separate passes over the whole document.</p>
+      </section>
+
+      <section class="explorer" id="explorer" aria-labelledby="explorer-title">
+        <div class="section-heading"><div><p class="eyebrow">01 / EXPLORE THE STRUCTURE</p><h2 id="explorer-title">Text on the left. Structure on the right.</h2></div><span class="live-label" id="parse-status" role="status"><span class="status-dot"></span> Live parse</span></div>
+        <div class="workspace">
+          <div class="source-panel">
+            <div class="panel-toolbar"><label class="sr-only" for="sample">Choose a sample</label><select id="sample"></select><button class="text-button" id="reset-source">Reset</button></div>
+            <p class="sample-description" id="sample-description"></p>
+            <div class="source-box">
+              <pre class="line-numbers" id="line-numbers" aria-hidden="true"></pre>
+              <div class="source-input">
+                <pre class="source-overlay" id="source-overlay" aria-hidden="true"></pre>
+                <textarea id="source" aria-label="Editable Carve source" wrap="off" spellcheck="false" autocapitalize="off" maxlength="24000"></textarea>
+              </div>
+            </div>
+            <div class="source-options"><label class="toggle"><input type="checkbox" id="citations" checked /> Enable citations</label><span>raw + citations</span></div>
+            <div class="parse-metrics" aria-label="Parse statistics"><div><strong id="metric-nodes">0</strong><span>nodes</span></div><div><strong id="metric-blocks">0</strong><span>blocks</span></div><div><strong id="metric-time">0</strong><span>ms / parse</span></div></div>
+            <div class="inspector">
+              <div class="inspector-heading"><span class="eyebrow">SELECTED NODE</span><span class="category-label" id="selected-category">root</span></div>
+              <h3 id="selected-name">document</h3>
+              <p id="selected-description">The root contains the document's blocks.</p>
+              <div class="range-label"><code id="selected-range">[0, 0)</code><span>UTF-16 · end exclusive</span></div>
+              <div class="range-track" aria-hidden="true"><span id="range-highlight"></span></div>
+              <pre id="selected-text"></pre>
+              <button class="text-button branch-button" id="toggle-branch">Collapse this branch</button>
+            </div>
+          </div>
+          <div class="tree-panel">
+            <div class="panel-toolbar tree-toolbar"><div><span class="panel-label">Syntax tree</span><span class="tree-hint">Select a node to inspect its text</span></div><div class="tree-actions"><button class="icon-button" id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-value">100%</span><button class="icon-button" id="zoom-in" aria-label="Zoom in">+</button><button class="text-button" id="fit-tree">Fit</button></div></div>
+            <div class="tree-options"><div class="legend"><span class="legend-block">Block</span><span class="legend-inline">Inline / content</span><span class="legend-marker">Punctuation</span></div><label class="toggle"><input type="checkbox" id="markers" /> Show punctuation</label></div>
+            <div class="tree-viewport" id="tree-viewport"><svg id="syntax-tree" role="group" aria-label="Interactive Carve syntax tree"></svg></div>
+            <div class="tree-footer"><span id="tree-summary">Actual Lezer nodes and ranges</span><button class="text-button" id="expand-tree">Expand all branches</button></div>
+          </div>
+        </div>
+        <p class="section-note">Click in the source to find a node. Select a tree node to highlight its range. Use the branch button to collapse it. The explorer shows up to 220 visible nodes and accepts up to 24,000 UTF-16 code units.</p>
+      </section>
+
+      <section class="stepping" aria-labelledby="step-title">
+        <div class="section-heading"><div><p class="eyebrow">02 / FOLLOW A PARSE</p><h2 id="step-title">One block. Then the next.</h2></div><span class="soft-label">startParse() → advance()</span></div>
+        <div class="step-layout">
+          <div class="step-explanation"><p>The parser can yield after each complete top-level block. Nested containers and their inline spans are handled within that block.</p><pre class="code-example"><code>const job = parser.startParse(source)
+const tree = job.advance()
+// null: another step is needed
+// Tree: parsing is complete</code></pre><div class="step-actions"><button class="button-primary" id="next-step">Step one block <span aria-hidden="true">→</span></button><button class="button-secondary" id="finish-steps">Finish parse</button><button class="text-button" id="reset-steps">Restart</button></div><p class="step-caption">Uses the current source above. The explorer already shows its full tree.</p></div>
+          <div class="step-visual"><div class="step-progress-heading"><strong id="step-status">Ready to begin</strong><code id="step-position">0 / 0</code></div><div class="step-progress" role="progressbar" aria-label="Parsed source position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="step-progress-fill"></span></div><div class="block-timeline" id="block-timeline"></div><p class="step-result" id="step-result" role="status">The lazy job has been created. No advance() calls yet.</p></div>
+        </div>
+      </section>
+
+      <section class="incremental" id="incremental" aria-labelledby="incremental-title">
+        <div class="section-heading"><div><p class="eyebrow">03 / SEE WHAT SURVIVES AN EDIT</p><h2 id="incremental-title">A small edit. A mostly familiar tree.</h2></div><button class="button-secondary" id="toggle-edit">Undo the edit</button></div>
+        <div class="incremental-grid">
+          <div class="reuse-explanation"><div class="edit-example"><span class="eyebrow">THE MIDDLE PARAGRAPH</span><p>A <del id="edit-old">small</del> <ins id="edit-new">focused</ins> edit belongs here.</p></div><p>Fragments map the previous tree through the edit. A block can be reused only when its input, configuration and boundary lookahead remain intact.</p><div class="reuse-stat"><strong id="reuse-count">0 / 0</strong><span>top-level block objects reused</span></div><p class="verification" id="reuse-verification" role="status"></p><pre class="code-example"><code>const fragments = TreeFragment.applyChanges(
+  TreeFragment.addTree(previousTree), changes, 0
+)
+const nextTree = parser.parse(nextSource, fragments)</code></pre></div>
+          <div class="reuse-visual">
+            <svg class="reuse-flow" viewBox="0 0 630 286" role="img" aria-label="After an edit, fragments map the old tree to new positions. A block with intact input and lookahead is reused; another block is parsed again. Both paths contribute to the new tree.">
+              <defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="currentColor"/></marker></defs>
+              <g class="flow-connectors"><path d="M124 63H177"/><path d="M317 63H363"/><path d="M445 108V152H192V176"/><path d="M445 108V152H508V176"/><path d="M192 222V262H306"/><path d="M508 222V262H326"/></g>
+              <rect class="flow-box" x="14" y="39" width="110" height="48" rx="10"/><text x="69" y="67">Text edit</text>
+              <rect class="flow-box" x="177" y="39" width="140" height="48" rx="10"/><text x="247" y="60">Map fragments</text><text class="flow-small" x="247" y="75">old → new positions</text>
+              <path class="flow-decision" d="M445 12 528 63 445 114 362 63z"/><text x="445" y="58">Block & lookahead</text><text x="445" y="75">intact?</text>
+              <text class="flow-yes" x="222" y="144">YES</text><text class="flow-no" x="524" y="144">NO</text>
+              <rect class="flow-reused" x="104" y="176" width="176" height="46" rx="10"/><text x="192" y="204">Reuse the subtree</text>
+              <rect class="flow-reparsed" x="420" y="176" width="176" height="46" rx="10"/><text x="508" y="204">Parse the block again</text>
+              <circle class="flow-merge" cx="316" cy="262" r="10"/><text class="flow-small" x="316" y="284">New syntax tree</text>
+            </svg>
+            <div class="reuse-blocks-heading"><span class="eyebrow">THE RESULT / REAL OBJECT IDENTITY</span><div class="legend"><span class="legend-reused">Reused</span><span class="legend-reparsed">Reparsed</span></div></div>
+            <div class="reuse-blocks" id="reuse-blocks"></div>
+          </div>
+        </div>
+        <p class="section-note">This demo uses a fragment minimum gap of 0 to make reuse visible in a short document. An edit near a boundary may also invalidate a neighbouring block. Reuse here is measured by subtree object identity, not by matching text.</p>
+      </section>
+      <footer><span>lezer-carve / a syntax tree, not a document renderer</span><span>Built from the local parser sources <span aria-hidden="true">↗</span></span></footer>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

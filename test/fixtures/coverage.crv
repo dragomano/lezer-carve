@@ -1,0 +1,80 @@
+%% This file exists to reach the node types no other fixture produces.
+%% It is deliberately ugly; see test/vocabulary.test.ts.
+
+# Vocabulary coverage
+
+## List markers
+
+- dash
+* star
+. auto-numbered
+1. decimal period
+1) decimal paren
+1)) decimal parens
+a. lower alpha period
+a) lower alpha paren
+a: lower alpha parens
+A. upper alpha period
+A) upper alpha paren
+A: upper alpha parens
+i. lower roman period
+i) lower roman paren
+i: lower roman parens
+I. upper roman period
+I) upper roman paren
+I: upper roman parens
+
+## Comment fences
+
+%%% TODO
+The info string on the fence opener is its own node.
+%%%
+
+## Breaks
+
+A backslash before a space is a hard break, as here: a \ b
+and the paragraph carries on.
+
+## Reserved container sigils
+
+::: >
+A quote written as a container.
+
+:::
+
+::: |
+A line block.
+
+:::
+
+::: \
+A local hard break block.
+
+:::
+
+::: figure
+A composite figure.
+
+:::
+
+## Tables
+
+| a | b |
++ continued | d |
+|{.x} attributed | plain |
+|=>{.y} aligned | b |
+
+^ A caption with content.
+
+## Inline
+
+![alt][ref] is a full reference image and ![alt][] is a collapsed one.
+
+!`html`{=html} is not the raw inline form. The raw inline form is spelled with
+braces: {=html}<b>verbatim</b>{=html}, and the format name is its own node.
+
+## Continuation marker
+
+> Quoted prose.
++
+The block below attaches to the quote without a marker prefix.
