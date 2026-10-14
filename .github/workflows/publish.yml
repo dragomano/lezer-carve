@@ -8,8 +8,64 @@ permissions:
   contents: read
   id-token: write   # required for npm trusted publishing
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      published: ${{ steps.registry.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Check the tag matches the version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Check whether the version is already published
+        id: registry
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs"
+
+          const { name, version } = JSON.parse(readFileSync("package.json", "utf8"))
+          const url = `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`
+          const response = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          if (response.status !== 404 && !response.ok) {
+            throw new Error(`Cannot check ${name}@${version}: npm returned HTTP ${response.status}`)
+          }
+
+          const published = response.ok
+          if (published) {
+            const metadata = await response.json()
+            if (metadata.name !== name || metadata.version !== version) {
+              throw new Error(`Unexpected registry response for ${name}@${version}`)
+            }
+          }
+
+          appendFileSync(process.env.GITHUB_OUTPUT, `published=${published}\n`)
+          console.log(published
+            ? `${name}@${version} is already on npm; skipping publication.`
+            : `${name}@${version} is not on npm; proceeding with publication.`)
+          NODE
+
   publish:
+    needs: check
+    if: needs.check.outputs.published == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -22,18 +78,6 @@ jobs:
           # and restoring one that does not match what is being published is a
           # way to ship stale dependencies.
           package-manager-cache: false
-
-      # npm resolves this to a short-lived token through the workflow identity
-      # configured on npmjs.com. There is no NPM_TOKEN secret here, and adding
-      # one would defeat the point.
-      - name: Check the tag matches the version
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
-            exit 1
-          fi
 
       - run: npm ci
       - run: npm run check:ci
@@ -58,4 +102,5 @@ jobs:
 
       # Provenance is attached automatically by trusted publishing, provided
       # the repository is public. Do not add --provenance.
+      # npm authenticates through the workflow's OIDC identity.
       - run: npm publish
